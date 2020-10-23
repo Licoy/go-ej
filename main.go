@@ -20,7 +20,19 @@ type EjAnswers struct {
 
 var errCount = 0
 
+var banner = `
+   ____             _____    _  
+  / ___| ___       | ____|  | | 
+ | |  _ / _ \ _____|  _| _  | | 
+ | |_| | (_) |_____| |__| |_| | 
+  \____|\___/      |_____\___/  
+                                
+
+`
+
 func main() {
+
+	color.BgCyan.Println(banner)
 
 	pwdPath, err := os.Getwd()
 	if err != nil {

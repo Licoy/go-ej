@@ -1,4 +1,4 @@
-module go-execl-to-json
+module go-ej
 
 go 1.13
 
