@@ -34,25 +34,43 @@ var banner = `
 
 func main() {
 
-	color.BgCyan.Println(banner)
+	args := os.Args
 
-	pwdPath, err := os.Getwd()
-	if err != nil {
-		color.Red.Printf("获取当前运行目录失败：%v\n", err)
-		return
+	if len(args) == 3 {
+		//命令行参数执行
+		argInPath := args[1]
+		argOutPath := args[2]
+		if !IsDir(argInPath) {
+			color.Red.Printf("错误：[ %s ]不是一个有效的执行目录\n", argInPath)
+			return
+		}
+		if !IsDir(argOutPath) {
+			color.Red.Printf("错误：[ %s ]不是一个有效的输出目录\n", argOutPath)
+			return
+		}
+		start(argInPath, argOutPath)
+
+	} else {
+		//选择执行
+		color.BgCyan.Println(banner)
+		pwdPath, err := os.Getwd()
+		if err != nil {
+			color.Red.Printf("获取当前运行目录失败：%v\n", err)
+			return
+		}
+
+		answers := &EjAnswers{}
+
+		outPath := pwdPath + "/out-json"
+
+		configInput(&answers.UsePwdPath, &answers.CustomPath, pwdPath, fmt.Sprintf("是否对[ %s ]目录下的Excel文件进行转换处理？", pwdPath), "请输入完整的处理目录：")
+
+		configInput(&answers.UseOutPwdPath, &answers.OutPath, outPath, fmt.Sprintf("是否使用[ %s ]作为输出目录", outPath), "请输入完整的输出目录：")
+
+		fmt.Println(answers)
+
+		start(answers.CustomPath, answers.OutPath)
 	}
-
-	answers := &EjAnswers{}
-
-	outPath := pwdPath + "/out-json"
-
-	configInput(&answers.UsePwdPath, &answers.CustomPath, pwdPath, fmt.Sprintf("是否对[ %s ]目录下的Excel文件进行转换处理？", pwdPath), "请输入完整的处理目录：")
-
-	configInput(&answers.UseOutPwdPath, &answers.OutPath, outPath, fmt.Sprintf("是否使用[ %s ]作为输出目录", outPath), "请输入完整的输出目录：")
-
-	fmt.Println(answers)
-
-	start(answers.CustomPath, answers.OutPath)
 }
 
 func configInput(resp interface{}, finalTo interface{}, pwdPath string, msg string, outMsg string) {
