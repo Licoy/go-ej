@@ -88,9 +88,10 @@ func start(filepath string) {
 	}
 
 	for _, file := range files {
-		color.Blue.Printf("开始处理：%s\n", file)
+		fileCurPath := strings.Replace(file, filepath, "", 1)
+		color.Blue.Printf("开始处理：%s\n", fileCurPath)
 		readExcel(filepath, file)
-		color.Green.Printf("处理完成：%s\n--------------------------\n", file)
+		color.Green.Printf("处理完成：%s\n--------------------------\n", fileCurPath)
 	}
 
 	finalMsg := fmt.Sprintf("Excel文件都已转换完成，共计包含%d个失败处理", errCount)
