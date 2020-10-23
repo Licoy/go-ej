@@ -14,8 +14,10 @@ import (
 )
 
 type EjAnswers struct {
-	UsePwdPath string
-	CustomPath string
+	UsePwdPath    string
+	CustomPath    string
+	UseOutPwdPath string
+	OutPath       string
 }
 
 var errCount = 0
@@ -42,46 +44,60 @@ func main() {
 
 	answers := &EjAnswers{}
 
+	outPath := pwdPath + "/out-json"
+
+	configInput(&answers.UsePwdPath, &answers.CustomPath, pwdPath, fmt.Sprintf("是否对[ %s ]目录下的Excel文件进行转换处理？", pwdPath), "请输入完整的处理目录：")
+
+	configInput(&answers.UseOutPwdPath, &answers.OutPath, outPath, fmt.Sprintf("是否使用[ %s ]作为输出目录", outPath), "请输入完整的输出目录：")
+
+	fmt.Println(answers)
+
+	start(answers.CustomPath, answers.OutPath)
+}
+
+func configInput(resp interface{}, finalTo interface{}, pwdPath string, msg string, outMsg string) {
+
 	sErr := survey.AskOne(&survey.Select{
-		Message: fmt.Sprintf("是否对[ %s ]目录下的Excel文件进行转换处理？", pwdPath),
+		Message: msg,
 		Options: []string{"是", "否"},
 		Default: "是",
-	}, &answers.UsePwdPath)
+	}, resp)
 	if sErr != nil {
 		color.Red.Println(sErr.Error())
 		return
 	}
 
-	if answers.UsePwdPath == "否" {
-		whileInput(answers, false)
+	rp := resp.(*string)
+	if *rp == "否" {
+		whileInput(finalTo, false, outMsg)
 	} else {
-		answers.CustomPath = pwdPath
+		ft := finalTo.(*string)
+		*ft = pwdPath
 	}
 
-	start(answers.CustomPath)
 }
 
-func whileInput(answers *EjAnswers, notDir bool) {
-	msg := "请输入目标处理的完整路径："
+func whileInput(resp interface{}, notDir bool, outMsg string) {
+	msg := outMsg
 	if notDir {
-		msg = "[错误/无效路径]" + msg
+		msg = "[错误/无效路径]" + outMsg
 	}
 	sErr := survey.AskOne(&survey.Input{
 		Message: msg,
-	}, &answers.CustomPath)
+	}, resp)
 
 	if sErr != nil {
 		color.Red.Println(sErr.Error())
 		return
 	}
 
-	if !IsDir(answers.CustomPath) {
-		color.Red.Printf("错误：[ %s ]不是一个有效的目录", answers.CustomPath)
-		whileInput(answers, true)
+	if !IsDir(*resp.(*string)) {
+		color.Red.Printf("错误：[ %s ]不是一个有效的目录", resp)
+		whileInput(resp, true, outMsg)
 	}
 }
 
-func start(filepath string) {
+func start(filepath string, outPath string) {
 	files, err := getAllExcel(filepath)
 	if err != nil {
 		color.Red.Printf("读取目录出现错误：%v\n", err)
@@ -90,7 +106,7 @@ func start(filepath string) {
 	for _, file := range files {
 		fileCurPath := strings.Replace(file, filepath, "", 1)
 		color.Blue.Printf("开始处理：%s\n", fileCurPath)
-		readExcel(filepath, file)
+		readExcel(filepath, file, outPath)
 		color.Green.Printf("处理完成：%s\n--------------------------\n", fileCurPath)
 	}
 
@@ -143,8 +159,8 @@ func checkFileIsExist(filename string) bool {
 }
 
 //读取excel
-func readExcel(basePath string, file string) {
-	outFile := strings.Replace(file, basePath, basePath+"/out-json", 1)
+func readExcel(basePath string, file string, outPath string) {
+	outFile := strings.Replace(file, basePath, outPath, 1)
 	outFile = strings.Replace(outFile, ".xlsx", ".json", 1)
 	var readErr error
 	var wf *os.File
