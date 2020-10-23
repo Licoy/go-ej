@@ -4,58 +4,70 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/360EntSecGroup-Skylar/excelize/v2"
+	"github.com/AlecAivazis/survey/v2"
+	"github.com/gookit/color"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/gookit/color"
 )
+
+type EjAnswers struct {
+	UsePwdPath string
+	CustomPath string
+}
+
+var errCount = 0
 
 func main() {
 
-	filepath, err := os.Getwd()
+	pwdPath, err := os.Getwd()
 	if err != nil {
 		color.Red.Printf("获取当前运行目录失败：%v\n", err)
 		return
 	}
 
-	color.Green.Println("----------------------------------")
-	color.Green.Printf("是否以 ")
-	color.BgBlue.Printf("[ %v ]", filepath)
-	color.Green.Printf(" 作为运行为目录\n1. 若是请直接回车\n2. 反之则输入对应目录的全路径\n")
-	color.Green.Println("----------------------------------")
+	answers := &EjAnswers{}
 
-	var input string
-	fmt.Scanln(&input)
-	fmt.Println("")
-	if input == "" {
-		start(filepath)
-	} else {
-		if !IsDir(input) {
-			color.Red.Printf("[ %v ]不是一个有效的目录，请重新输入：\n", input)
-			whileInput()
-		} else {
-			start(input)
-		}
+	sErr := survey.AskOne(&survey.Select{
+		Message: fmt.Sprintf("是否对[ %s ]目录下的Excel文件进行转换处理？", pwdPath),
+		Options: []string{"是", "否"},
+		Default: "是",
+	}, &answers.UsePwdPath)
+	if sErr != nil {
+		color.Red.Println(sErr.Error())
+		return
 	}
 
-	//
+	if answers.UsePwdPath == "否" {
+		whileInput(answers, false)
+	} else {
+		answers.CustomPath = pwdPath
+	}
+
+	start(answers.CustomPath)
 }
 
-func whileInput() {
-	var input string
-	fmt.Scanln(&input)
-	if !IsDir(input) {
-		color.Red.Printf("[ %v ]不是一个有效的目录，请重新输入：\n", input)
-		whileInput()
-	} else {
-		start(input)
+func whileInput(answers *EjAnswers, notDir bool) {
+	msg := "请输入目标处理的完整路径："
+	if notDir {
+		msg = "[错误/无效路径]" + msg
+	}
+	sErr := survey.AskOne(&survey.Input{
+		Message: msg,
+	}, &answers.CustomPath)
+
+	if sErr != nil {
+		color.Red.Println(sErr.Error())
+		return
+	}
+
+	if !IsDir(answers.CustomPath) {
+		color.Red.Printf("错误：[ %s ]不是一个有效的目录", answers.CustomPath)
+		whileInput(answers, true)
 	}
 }
-
-var errCount int = 0
 
 func start(filepath string) {
 	files, err := getAllExcel(filepath)
@@ -78,7 +90,7 @@ func start(filepath string) {
 	}
 	var input string
 	color.Primary.Println("请键入任意键回车进行退出...")
-	fmt.Scanln(&input)
+	_, _ = fmt.Scanln(&input)
 }
 
 func IsDir(path string) bool {
@@ -121,26 +133,26 @@ func checkFileIsExist(filename string) bool {
 func readExcel(basePath string, file string) {
 	outFile := strings.Replace(file, basePath, basePath+"/out-json", 1)
 	outFile = strings.Replace(outFile, ".xlsx", ".json", 1)
-	var rerr error
+	var readErr error
 	var wf *os.File
 	outPaths, _ := filepath.Split(outFile)
 	if checkFileIsExist(outFile) { //如果文件存在
-		os.Remove(outFile)
-		wf, rerr = os.Create(outFile) //创建文件
+		_ = os.Remove(outFile)
+		wf, readErr = os.Create(outFile) //创建文件
 	} else {
-		os.MkdirAll(outPaths, os.ModePerm)
-		wf, rerr = os.Create(outFile) //创建文件
+		_ = os.MkdirAll(outPaths, os.ModePerm)
+		wf, readErr = os.Create(outFile) //创建文件
 	}
-	if rerr != nil {
+	if readErr != nil {
 		errCount++
-		color.Red.Printf("创建%s文件的写入流失败 %v\n", outFile, rerr)
+		color.Red.Printf("创建%s文件的写入流失败 %v\n", outFile, readErr)
 		return
 	}
 	defer wf.Close()
 	f, err := excelize.OpenFile(file)
 	if err != nil {
 		errCount++
-		color.Red.Printf("读取Execl失败：%s, %v\n", file, err)
+		color.Red.Printf("读取Excel失败：%s, %v\n", file, err)
 		return
 	}
 	firstSheet := f.GetSheetList()[0]
@@ -181,9 +193,9 @@ func readExcel(basePath string, file string) {
 		color.Red.Printf("转换JSON失败：%s, %v\n", file, err)
 		return
 	}
-	_, werr := io.WriteString(wf, string(marshal))
-	if werr != nil {
+	_, writeErr := io.WriteString(wf, string(marshal))
+	if writeErr != nil {
 		errCount++
-		color.Red.Printf("写入文件失败失败：%s, %v\n", outFile, werr)
+		color.Red.Printf("写入文件失败失败：%s, %v\n", outFile, writeErr)
 	}
 }
