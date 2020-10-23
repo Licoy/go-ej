@@ -67,8 +67,6 @@ func main() {
 
 		configInput(&answers.UseOutPwdPath, &answers.OutPath, outPath, fmt.Sprintf("是否使用[ %s ]作为输出目录", outPath), "请输入完整的输出目录：")
 
-		fmt.Println(answers)
-
 		start(answers.CustomPath, answers.OutPath)
 	}
 }
